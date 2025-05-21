@@ -22,6 +22,6 @@ public class Main {
         frame.setContentPane(gamePanel);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
-
+//juego
     }
 }
