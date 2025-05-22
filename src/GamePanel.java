@@ -1,3 +1,5 @@
+// Asegúrate de tener importadas tus clases como Character, Warrior, Mage, Priest, Enemies en el package Model
+
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
@@ -9,8 +11,6 @@ import java.util.ArrayList;
 import Model.Mage;
 import Model.Warrior;
 import Model.Priest;
-
-
 import Model.Enemies;
 
 public class GamePanel extends JPanel implements KeyListener, ActionListener {
@@ -20,13 +20,12 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
     private ArrayList<Enemies> enemies;
     private ImageIcon heartIcon;
 
-
-    // Objetos a recoger
     private class GameObject {
         int x, y;
         ImageIcon icon;
         boolean collected;
         String type;
+
         public GameObject(int x, int y, ImageIcon icon, String type) {
             this.x = x;
             this.y = y;
@@ -35,12 +34,10 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
             this.collected = false;
         }
     }
-    private ArrayList<GameObject> objects;
 
+    private ArrayList<GameObject> objects;
     BufferedImage tileImage;
     BufferedImage tileWall;
-
-    // UI monedas
     private int coins = 0;
     private ImageIcon dollarIcon, mitraIcon, potionIcon, swordIcon;
 
@@ -52,7 +49,6 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
         setFocusable(true);
         addKeyListener(this);
 
-        // Cargar imágenes y escalar a 32x32
         dollarIcon = new ImageIcon("src/imatges_joc_rol/images/dungeon/dollar.png");
         mitraIcon = new ImageIcon("src/imatges_joc_rol/images/dungeon/mitra.png");
         potionIcon = new ImageIcon("src/imatges_joc_rol/images/dungeon/potion.png");
@@ -65,21 +61,32 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
         swordIcon = new ImageIcon(swordIcon.getImage().getScaledInstance(32, 32, Image.SCALE_SMOOTH));
         heartIcon = new ImageIcon(heartIcon.getImage().getScaledInstance(32, 32, Image.SCALE_SMOOTH));
 
-        // Crear objetos en posiciones aleatorias
-        objects = new ArrayList<>();
-        objects.add(new GameObject(randomX(), randomY(), dollarIcon, "dollar"));
-        objects.add(new GameObject(randomX(), randomY(), potionIcon, "potion"));
-        objects.add(new GameObject(randomX(), randomY(), swordIcon, "sword"));
-        objects.add(new GameObject(randomX(), randomY(), mitraIcon, "mitra"));
+        initObjects();
 
-        // Crear enemigos
         enemies = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
             enemies.add(new Enemies());
         }
 
-        timer = new Timer(16, this);  // ~60 FPS
+        timer = new Timer(16, this);
         timer.start();
+    }
+
+    private void initObjects() {
+        objects = new ArrayList<>();
+        int coinCount = 5;
+        if (character instanceof Warrior) coinCount = 0;
+        for (int i = 0; i < coinCount; i++) {
+            objects.add(new GameObject(randomX(), randomY(), dollarIcon, "dollar"));
+        }
+
+        if (character instanceof Mage) {
+            objects.add(new GameObject(randomX(), randomY(), potionIcon, "potion"));
+        } else if (character instanceof Warrior) {
+            objects.add(new GameObject(randomX(), randomY(), swordIcon, "sword"));
+        } else if (character instanceof Priest) {
+            objects.add(new GameObject(randomX(), randomY(), mitraIcon, "mitra"));
+        }
     }
 
     private int randomX() {
@@ -99,20 +106,11 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
         super.paintComponent(g);
         setBackground(Color.BLACK);
 
-        // Cargar tiles (solo la primera vez)
-        if (tileImage == null || tileWall == null) {
-            try {
-                tileImage = ImageIO.read(new File("src/imatges_joc_rol/images/dungeon/tile001.png"));
-                tileWall = ImageIO.read(new File("src/imatges_joc_rol/images/dungeon/tile004.png"));
-            } catch (IOException | IllegalArgumentException e) {
-                tileImage = new BufferedImage(32, 32, BufferedImage.TYPE_INT_RGB);
-                Graphics2D g2 = tileImage.createGraphics();
-                g2.setColor(Color.RED);
-                g2.fillRect(0, 0, 32, 32);
-                g2.dispose();
-
-                tileWall = new BufferedImage(32, 32, BufferedImage.TYPE_INT_RGB);
-            }
+        try {
+            if (tileImage == null) tileImage = ImageIO.read(new File("src/imatges_joc_rol/images/dungeon/tile001.png"));
+            if (tileWall == null) tileWall = ImageIO.read(new File("src/imatges_joc_rol/images/dungeon/tile004.png"));
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
         int tileWidth = tileImage.getWidth();
@@ -120,58 +118,29 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
         int cols = (int) Math.ceil((double) getWidth() / tileWidth);
         int rows = (int) Math.ceil((double) getHeight() / tileHeight);
 
-        int tileWallWidth = tileWall.getWidth();
-        int tileWallHeight = tileWall.getHeight();
-        int colsWall = (int) Math.ceil((double) getWidth() / tileWallWidth);
-        int rowsWall = 1;
-
-        // Dibujar fondo
         for (int y = 0; y < rows; y++) {
             for (int x = 0; x < cols; x++) {
                 g.drawImage(tileImage, x * tileWidth, y * tileHeight, null);
             }
         }
 
-        // Dibujar muros arriba y abajo
-        for (int x = 0; x < colsWall; x++) {
-            g.drawImage(tileWall, x * tileWallWidth, 0, null);
-            g.drawImage(tileWall, x * tileWallWidth, (rows - 1) * tileWallHeight, null);
-        }
-
-        // Dibujar jugador
         g.drawImage(character.getCurrentSprite().getImage(), playerX, playerY, this);
 
-        // Dibujar enemigos
         for (Enemies enemy : enemies) {
             g.drawImage(enemy.getCurrentSprite().getImage(), enemy.getX(), enemy.getY(), this);
         }
 
-        // Dibujar objetos si no han sido recogidos
         for (GameObject obj : objects) {
             if (!obj.collected) {
                 g.drawImage(obj.icon.getImage(), obj.x, obj.y, this);
             }
         }
 
-        // Dibujar UI (monedas y corazones) arriba a la derecha
         g.setColor(Color.WHITE);
         g.setFont(new Font("Arial", Font.BOLD, 20));
-        int padding = 10;
-        int iconSize = 32;
-
-        // MONEDAS
-        int coinX = getWidth() - 100;
-        int coinY = padding + iconSize;
-        g.drawString(coins + "x", coinX + iconSize + 5, coinY - 8);
-        g.drawImage(dollarIcon.getImage(), coinX, padding, iconSize, iconSize, this);
-
-        // VIDAS (corazones)
-        int heartX = getWidth() - 100;
-        int heartY = padding + iconSize + 10 + iconSize;
-        g.drawString(character.getLives() + "x", heartX + iconSize + 5, heartY + 24 - 8);
-        g.drawImage(heartIcon.getImage(), heartX, heartY, iconSize, iconSize, this);
+        g.drawString("Coins: " + coins, 20, 30);
+        g.drawString("Lives: " + character.getLives(), 20, 60);
     }
-
 
     @Override
     public void actionPerformed(ActionEvent e) {
@@ -182,130 +151,67 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
 
     private void checkObjectCollision() {
         Rectangle playerRect = new Rectangle(playerX, playerY, character.getCurrentSprite().getIconWidth(), character.getCurrentSprite().getIconHeight());
-
         for (GameObject obj : objects) {
             if (!obj.collected) {
                 Rectangle objRect = new Rectangle(obj.x, obj.y, obj.icon.getIconWidth(), obj.icon.getIconHeight());
                 if (playerRect.intersects(objRect)) {
                     obj.collected = true;
-                    if (obj.type.equals("dollar")) {
-                        coins += 10;  // 10 coins por moneda
+                    switch (obj.type) {
+                        case "dollar":
+                            coins += 10;
+                            if ((character instanceof Mage || character instanceof Priest) && coins >= 50) {
+                                JOptionPane.showMessageDialog(this, "¡Has ganado recogiendo 50 monedas!", "Victoria", JOptionPane.INFORMATION_MESSAGE);
+                                SwingUtilities.invokeLater(this::restartGame);
+                                return;
+                            }
+                            break;
+                        case "potion":
+                            if (character instanceof Mage) character.addLife();
+                            break;
                     }
                 }
             }
         }
     }
 
-    @Override
-    public void keyPressed(KeyEvent e) {
-        switch (e.getKeyCode()) {
-            case KeyEvent.VK_UP:
-                playerY -= character.getSpeed();
-                character.setDirection("up");
-                break;
-            case KeyEvent.VK_DOWN:
-                playerY += character.getSpeed();
-                character.setDirection("down");
-                break;
-            case KeyEvent.VK_LEFT:
-                playerX -= character.getSpeed();
-                character.setDirection("left");
-                break;
-            case KeyEvent.VK_RIGHT:
-                playerX += character.getSpeed();
-                character.setDirection("right");
-                break;
-        }
-        // Evitar que el jugador salga fuera del panel
-        playerX = Math.max(0, Math.min(playerX, getWidth() - character.getCurrentSprite().getIconWidth()));
-        playerY = Math.max(0, Math.min(playerY, getHeight() - character.getCurrentSprite().getIconHeight()));
-    }
     private void checkEnemyCollision() {
-        Rectangle playerRect = new Rectangle(playerX, playerY,
-                character.getCurrentSprite().getIconWidth(), character.getCurrentSprite().getIconHeight());
-
+        Rectangle playerRect = new Rectangle(playerX, playerY, character.getCurrentSprite().getIconWidth(), character.getCurrentSprite().getIconHeight());
         for (int i = 0; i < enemies.size(); i++) {
             Enemies enemy = enemies.get(i);
             Rectangle enemyRect = new Rectangle(enemy.getX(), enemy.getY(), 32, 32);
-
             if (playerRect.intersects(enemyRect)) {
-                boolean hasPotion = isObjectCollected("potion");
                 boolean hasSword = isObjectCollected("sword");
                 boolean hasMitra = isObjectCollected("mitra");
 
-                if (character instanceof Mage && hasPotion) {
-                    character.addLife();
-                    resetPlayerPosition();
-                    removeCollected("potion");
-                    break;
-                } else if (character instanceof Warrior && hasSword) {
+                if (character instanceof Warrior && hasSword) {
                     enemies.remove(i);
                     coins += 10;
                     removeCollected("sword");
-                    break;
+                    if (enemies.isEmpty()) {
+                        JOptionPane.showMessageDialog(this, "¡Has ganado!", "Victoria", JOptionPane.INFORMATION_MESSAGE);
+                        SwingUtilities.invokeLater(this::restartGame);
+                        return;
+                    }
                 } else if (character instanceof Priest && hasMitra) {
                     resetPlayerPosition();
                     removeCollected("mitra");
-                    break;
                 } else {
                     character.loseLife();
                     if (character.getLives() <= 0) {
-                        restartGame();
+                        JOptionPane.showMessageDialog(this, "¡Has perdido!", "Derrota", JOptionPane.ERROR_MESSAGE);
+                        SwingUtilities.invokeLater(this::restartGame);
+                        return;
                     } else {
                         resetPlayerPosition();
                     }
-                    break;
                 }
             }
         }
-    }
-    private void restartGame() {
-        // Reiniciar posición
-        playerX = 100;
-        playerY = 100;
-
-        // Reiniciar vidas según tipo
-        if (character instanceof Mage) {
-            character.setLives(3);
-        } else if (character instanceof Warrior) {
-            character.setLives(5);
-        } else if (character instanceof Priest) {
-            character.setLives(4);
-        }
-
-        // Reiniciar monedas
-        coins = 0;
-
-        // Reiniciar objetos
-        objects.clear();
-        objects.add(new GameObject(randomX(), randomY(), dollarIcon, "dollar"));
-        objects.add(new GameObject(randomX(), randomY(), potionIcon, "potion"));
-        objects.add(new GameObject(randomX(), randomY(), swordIcon, "sword"));
-        objects.add(new GameObject(randomX(), randomY(), mitraIcon, "mitra"));
-
-        // Reiniciar enemigos
-        enemies.clear();
-        for (int i = 0; i < 5; i++) {
-            enemies.add(new Enemies());
-        }
-
-        // Dirección inicial
-        character.setDirection("down");
-
-        // Repaint inmediato
-        repaint();
-    }
-
-    private void resetPlayerPosition() {
-        playerX = 100;
-        playerY = 100;
     }
 
     private boolean isObjectCollected(String type) {
         for (GameObject obj : objects) {
-            if (obj.type.equals(type) && obj.collected) {
-                return true;
-            }
+            if (obj.type.equals(type) && obj.collected) return true;
         }
         return false;
     }
@@ -314,15 +220,45 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
         for (GameObject obj : objects) {
             if (obj.type.equals(type)) {
                 obj.collected = false;
-                obj.x = randomX();  // opcional: regenerar a una nova posició
+                obj.x = randomX();
                 obj.y = randomY();
             }
         }
     }
 
+    private void restartGame() {
+        playerX = 100;
+        playerY = 100;
+        coins = 0;
+        if (character instanceof Mage) character.setLives(3);
+        else if (character instanceof Priest) character.setLives(4);
+        else if (character instanceof Warrior) character.setLives(5);
 
-    @Override
-    public void keyReleased(KeyEvent e) { }
-    @Override
-    public void keyTyped(KeyEvent e) { }
+        initObjects();
+
+        enemies.clear();
+        for (int i = 0; i < 5; i++) {
+            enemies.add(new Enemies());
+        }
+        repaint();
+    }
+
+    private void resetPlayerPosition() {
+        playerX = 100;
+        playerY = 100;
+    }
+
+    @Override public void keyPressed(KeyEvent e) {
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_UP -> { playerY -= character.getSpeed(); character.setDirection("up"); }
+            case KeyEvent.VK_DOWN -> { playerY += character.getSpeed(); character.setDirection("down"); }
+            case KeyEvent.VK_LEFT -> { playerX -= character.getSpeed(); character.setDirection("left"); }
+            case KeyEvent.VK_RIGHT -> { playerX += character.getSpeed(); character.setDirection("right"); }
+        }
+        playerX = Math.max(0, Math.min(playerX, getWidth() - character.getCurrentSprite().getIconWidth()));
+        playerY = Math.max(0, Math.min(playerY, getHeight() - character.getCurrentSprite().getIconHeight()));
+    }
+
+    @Override public void keyReleased(KeyEvent e) {}
+    @Override public void keyTyped(KeyEvent e) {}
 }
