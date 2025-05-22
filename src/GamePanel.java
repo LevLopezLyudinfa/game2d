@@ -1,5 +1,3 @@
-// Asegúrate de tener importadas tus clases como Character, Warrior, Mage, Priest, Enemies en el package Model
-
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
@@ -19,6 +17,7 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
     private int playerX, playerY;
     private ArrayList<Enemies> enemies;
     private ImageIcon heartIcon;
+    private long startTime;
 
     private class GameObject {
         int x, y;
@@ -45,6 +44,7 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
         this.character = character;
         this.playerX = 100;
         this.playerY = 100;
+        this.startTime = System.currentTimeMillis();
 
         setFocusable(true);
         addKeyListener(this);
@@ -160,13 +160,18 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
                         case "dollar":
                             coins += 10;
                             if ((character instanceof Mage || character instanceof Priest) && coins >= 50) {
-                                JOptionPane.showMessageDialog(this, "¡Has ganado recogiendo 50 monedas!", "Victoria", JOptionPane.INFORMATION_MESSAGE);
-                                SwingUtilities.invokeLater(this::restartGame);
+                                guardarDatosYReiniciar(true);
                                 return;
                             }
                             break;
                         case "potion":
                             if (character instanceof Mage) character.addLife();
+                            break;
+                        case "mitra":
+                            if (character instanceof Priest) {
+                                enemies.clear();
+                                repaint();
+                            }
                             break;
                     }
                 }
@@ -188,18 +193,15 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
                     coins += 10;
                     removeCollected("sword");
                     if (enemies.isEmpty()) {
-                        JOptionPane.showMessageDialog(this, "¡Has ganado!", "Victoria", JOptionPane.INFORMATION_MESSAGE);
-                        SwingUtilities.invokeLater(this::restartGame);
+                        guardarDatosYReiniciar(true);
                         return;
                     }
                 } else if (character instanceof Priest && hasMitra) {
                     resetPlayerPosition();
-                    removeCollected("mitra");
                 } else {
                     character.loseLife();
                     if (character.getLives() <= 0) {
-                        JOptionPane.showMessageDialog(this, "¡Has perdido!", "Derrota", JOptionPane.ERROR_MESSAGE);
-                        SwingUtilities.invokeLater(this::restartGame);
+                        guardarDatosYReiniciar(false);
                         return;
                     } else {
                         resetPlayerPosition();
@@ -207,6 +209,23 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
                 }
             }
         }
+    }
+
+    private void guardarDatosYReiniciar(boolean victoria) {
+        long endTime = System.currentTimeMillis();
+        int duration = (int)((endTime - startTime) / 1000);
+
+        String nombre = JOptionPane.showInputDialog(this, "Introduce tu nombre:");
+        if (nombre == null || nombre.trim().isEmpty()) nombre = "Desconocido";
+
+        String tipo = character.getClass().getSimpleName();
+        int vidasRestantes = character.getLives();
+
+        DatabaseManager.insertarPartida(nombre, tipo, vidasRestantes, duration);
+
+        String msg = victoria ? "\u00a1Has ganado!" : "\u00a1Has perdido!";
+        JOptionPane.showMessageDialog(this, msg, "Fin de la partida", JOptionPane.INFORMATION_MESSAGE);
+        restartGame();
     }
 
     private boolean isObjectCollected(String type) {
@@ -230,6 +249,8 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
         playerX = 100;
         playerY = 100;
         coins = 0;
+        startTime = System.currentTimeMillis();
+
         if (character instanceof Mage) character.setLives(3);
         else if (character instanceof Priest) character.setLives(4);
         else if (character instanceof Warrior) character.setLives(5);
